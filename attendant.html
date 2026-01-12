@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>00학교 출결 관리 프로그램 (수정버전)</title>
+    <style>
+        /* [기본 스타일] */
+        :root { --primary: #4a90e2; --secondary: #50e3c2; --bg: #f0f2f5; }
+        body { font-family: 'Pretendard', sans-serif; background: var(--bg); margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .container { background: white; width: 100%; max-width: 600px; padding: 2rem; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); min-height: 600px; }
+        
+        /* [페이지 전환] */
+        .page { display: none; }
+        .active { display: block; }
+
+        /* [버튼 및 입력] */
+        h1, h2, h3 { text-align: center; color: #333; }
+        .btn { display: block; width: 100%; padding: 15px; margin: 10px 0; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-secondary { background: var(--secondary); color: #333; }
+        .btn-outline { background: transparent; border: 1px solid #ddd; color: #666; }
+        .input-group { margin-bottom: 15px; }
+        .input-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .input-group input, .input-group select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+        
+        /* [테이블] */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+        th, td { padding: 10px; border-bottom: 1px solid #eee; text-align: center; }
+        th { background: #f8f9fa; }
+        .stats-box { background: #f1f8ff; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; line-height: 1.6; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div id="page-home" class="page active">
+            <h1 style="margin-top: 100px;">출결 관리 프로그램</h1>
+            <h3 style="color: #666;">00학교</h3>
+            <div style="margin-top: 50px;">
+                <button class="btn btn-primary" onclick="showPage('page-teacher-login')">교사용</button>
+                <button class="btn btn-secondary" onclick="showPage('page-student-checkin')">학생용</button>
+            </div>
+        </div>
+
+        <div id="page-teacher-login" class="page">
+            <h2>교사 인증</h2>
+            <div style="margin-top: 40px;">
+                <div class="input-group">
+                    <label>나이스 번호</label>
+                    <input type="password" id="teacher-neis">
+                </div>
+                <div class="input-group">
+                    <label>이름</label>
+                    <input type="text" id="teacher-name">
+                </div>
+                <button class="btn btn-primary" onclick="teacherLogin()">로그인</button>
+                <button class="btn btn-outline" onclick="showPage('page-home')">뒤로가기</button>
+            </div>
+        </div>
+
+        <div id="page-teacher-dash" class="page">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3>출결 현황판</h3>
+                <button onclick="showPage('page-home')" style="cursor:pointer;">로그아웃</button>
+            </div>
+            <div class="stats-box" id="dashboard-stats">로딩중...</div>
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead><tr><th>이름</th><th>상태</th><th>시간</th><th>비고</th></tr></thead>
+                    <tbody id="attendance-list"></tbody>
+                </table>
+            </div>
+            <button class="btn btn-secondary" style="margin-top:20px;" onclick="showPage('page-teacher-add')">+ 학생 추가</button>
+        </div>
+
+        <div id="page-teacher-add" class="page">
+            <h2>학생 추가</h2>
+            <div class="input-group"><label>학번</label><input type="text" id="add-id"></div>
+            <div class="input-group"><label>이름</label><input type="text" id="add-name"></div>
+            <div class="input-group">
+                <label>상태</label>
+                <select id="add-status">
+                    <option>출석</option><option>결석</option><option>지각</option><option>조퇴</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" onclick="manualAdd()">저장</button>
+            <button class="btn btn-outline" onclick="showPage('page-teacher-dash')">취소</button>
+        </div>
+
+        <div id="page-student-checkin" class="page">
+            <h2>학생 출석체크</h2>
+            <div class="input-group"><label>학번</label><input type="text" id="stu-id"></div>
+            <div class="input-group"><label>이름</label><input type="text" id="stu-name"></div>
+            <div class="input-group">
+                <label>열심히 공부하겠습니까? (예/아니오)</label>
+                <div style="display:flex; gap:10px;">
+                    <label><input type="radio" name="study" value="예" checked> 예</label>
+                    <label><input type="radio" name="study" value="아니오"> 아니오</label>
+                </div>
+            </div>
+            <div class="input-group"><label>사유/비고</label><input type="text" id="stu-reason"></div>
+            <button class="btn btn-secondary" onclick="studentSubmit()">등록</button>
+            <button class="btn btn-outline" onclick="showPage('page-home')">메인으로</button>
+        </div>
+
+        <div id="page-student-result" class="page">
+            <h2 id="res-name"></h2>
+            <p id="res-msg" style="text-align:center; color:blue; font-size:18px;"></p>
+            <div class="stats-box">
+                <p id="res-time"></p>
+                <p id="res-note"></p>
+            </div>
+            <button class="btn btn-primary" onclick="showPage('page-home')">확인</button>
+        </div>
+    </div>
+
+    <script>
+        // --- [안전 모드 데이터 로딩] ---
+        let attendanceData = [];
+        try {
+            // 브라우저 저장소 접근 시도
+            const saved = localStorage.getItem('attendanceDB');
+            if (saved) {
+                attendanceData = JSON.parse(saved);
+            } else {
+                // 초기 데이터
+                attendanceData = [{id:'101', name:'테스트', status:'출석', time:'08:30', note:'예시', date:'-'}];
+            }
+        } catch (e) {
+            console.log("저장소 접근 불가(파일 모드 등). 임시 메모리를 사용합니다.");
+            // 저장소가 막혀도 작동하도록 빈 배열로 시작
+            attendanceData = [{id:'101', name:'테스트', status:'출석', time:'08:30', note:'예시', date:'-'}];
+        }
+
+        function saveData() {
+            try {
+                localStorage.setItem('attendanceDB', JSON.stringify(attendanceData));
+            } catch (e) {
+                console.log("데이터 저장 실패 (보안 설정 또는 용량 초과)");
+            }
+        }
+
+        // --- [화면 전환] ---
+        function showPage(pageId) {
+            // 모든 페이지 숨김
+            const pages = document.querySelectorAll('.page');
+            for(let i=0; i<pages.length; i++) {
+                pages[i].style.display = 'none'; // active 클래스 대신 직접 제어
+            }
+            
+            // 선택한 페이지 보임
+            const target = document.getElementById(pageId);
+            if(target) {
+                target.style.display = 'block';
+                // 교사 대시보드면 데이터 갱신
+                if(pageId === 'page-teacher-dash') renderDashboard();
+            } else {
+                alert("페이지를 찾을 수 없습니다: " + pageId);
+            }
+        }
+
+        // --- [기능 로직] ---
+        function teacherLogin() {
+            const neis = document.getElementById('teacher-neis').value;
+            const name = document.getElementById('teacher-name').value;
+            if(neis && name) {
+                showPage('page-teacher-dash');
+                // 입력창 비우기
+                document.getElementById('teacher-neis').value = '';
+                document.getElementById('teacher-name').value = '';
+            } else {
+                alert('정보를 입력해주세요.');
+            }
+        }
+
+        function renderDashboard() {
+            const tbody = document.getElementById('attendance-list');
+            const statsDiv = document.getElementById('dashboard-stats');
+            tbody.innerHTML = '';
+
+            let counts = { '출석':0, '결석':0, '지각':0, '조퇴':0 };
+            
+            // 최신순 정렬
+            const list = attendanceData.slice().reverse();
+
+            list.forEach(item => {
+                const tr = document.createElement('tr');
+                let color = item.status === '결석' ? 'red' : (item.status === '지각' ? 'orange' : 'green');
+                tr.innerHTML = `<td>${item.name}</td><td style="color:${color}">${item.status}</td><td>${item.time}</td><td>${item.note}</td>`;
+                tbody.appendChild(tr);
+                if(counts[item.status] !== undefined) counts[item.status]++;
+            });
+
+            const total = list.length;
+            statsDiv.innerHTML = `
+                <b>출석:</b> ${counts['출석']} (${total ? Math.round(counts['출석']/total*100) : 0}%) | 
+                <b>결석:</b> ${counts['결석']} | <b>지각:</b> ${counts['지각']} | <b>조퇴:</b> ${counts['조퇴']}
+            `;
+        }
+
+        function manualAdd() {
+            const id = document.getElementById('add-id').value;
+            const name = document.getElementById('add-name').value;
+            if(!id || !name) return alert('학번과 이름을 입력하세요.');
+
+            const now = new Date();
+            const timeStr = now.getHours() + ":" + String(now.getMinutes()).padStart(2,'0');
+            
+            attendanceData.push({
+                id: id, name: name, status: document.getElementById('add-status').value,
+                time: timeStr, note: '교사 입력', date: now.toLocaleDateString()
+            });
+            saveData();
+            alert('저장됨');
+            showPage('page-teacher-dash');
+        }
+
+        function studentSubmit() {
+            const id = document.getElementById('stu-id').value;
+            const name = document.getElementById('stu-name').value;
+            if(!id || !name) return alert('학번과 이름을 입력하세요.');
+
+            const now = new Date();
+            let status = (now.getHours() >= 9 && now.getMinutes() > 0) ? '지각' : '출석';
+            
+            const study = document.querySelector('input[name="study"]:checked').value;
+            let note = document.getElementById('stu-reason').value;
+            if(study === '아니오') note = '[공부X] ' + note;
+
+            const record = {
+                id: id, name: name, status: status,
+                time: now.toLocaleString(), note: note || '-', date: now.toLocaleDateString()
+            };
+            
+            attendanceData.push(record);
+            saveData();
+
+            // 결과창 설정
+            document.getElementById('res-name').innerText = name;
+            document.getElementById('res-msg').innerText = status + " 처리되었습니다.";
+            document.getElementById('res-time').innerText = "시간: " + record.time;
+            document.getElementById('res-note').innerText = "비고: " + record.note;
+            
+            showPage('page-student-result');
+            
+            // 입력창 초기화
+            document.getElementById('stu-id').value = '';
+            document.getElementById('stu-name').value = '';
+            document.getElementById('stu-reason').value = '';
+        }
+    </script>
+</body>
+</html>
